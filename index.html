@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>To-do list App</title>
+    <script src="./node_modules/web3/dist/web3.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            min-width: 50px;
+        }
+
+        /* Include the padding and border in an element's total width and height */
+        * {
+            box-sizing: border-box;
+        }
+
+        /* Remove margins and padding from the list */
+        ul {
+            margin: 0;
+            padding: 40px 40px 40px 40px;
+        }
+
+        /* Style the list items */
+        ul li {
+            cursor: pointer;
+            position: relative;
+            padding: 12px 8px 12px 40px;
+            list-style-type: none;
+            background: #eee;
+            font-size: 18px;
+            transition: 0.2s;
+
+            /* make the list items unselectable */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* Set all odd list items to a different color (zebra-stripes) */
+        ul li:nth-child(odd) {
+            background: #f9f9f9;
+        }
+
+        /* Darker background-color on hover */
+        ul li:hover {
+            background: #ddd;
+        }
+
+
+        /* Style the close button */
+        .close {
+            position: absolute;
+            right: 0;
+            top: 0;
+            padding: 12px 16px 12px 16px;
+        }
+
+        .close:hover {
+            background-color: #f44336;
+            color: white;
+        }
+
+        /* Style the header */
+        .header {
+            background-color: skyblue;
+            padding: 30px 30px;
+            color: white;
+            text-align: center;
+            margin: auto;
+            width: 70%;
+        }
+
+        .list {
+            text-align: left;
+            margin: auto;
+            width: 76%;
+        }
+
+        /* Clear floats after the header */
+        .header:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        /* Style the input */
+        input {
+            border: none;
+            width: 75%;
+            padding: 10px;
+            float: left;
+            font-size: 16px;
+        }
+
+        /* Style the "Add" button */
+        .updateBtn {
+            padding: 10px;
+            width: 8%;
+            background: #d9d9d9;
+            color: #555;
+            float: left;
+            text-align: center;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            float: right;
+            display: none;
+        }
+
+        .addBtn {
+            padding: 10px;
+            width: 8%;
+            background: #d9d9d9;
+            color: #555;
+            float: left;
+            text-align: center;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            float: right;
+        }
+
+        .editBtn {
+            float: right;
+            margin-right: 30px;
+            width: 3%;
+            background: floralwhite;
+            color: #555;
+            text-align: right;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .addBtn:hover {
+            background-color: #bbb;
+        }
+    </style>
+</head>
+<body>
+<div id="myDIV" class="header">
+    <h2 style="margin:5px">To Do List</h2>
+    <input type="text" id="myInput" placeholder="Title...">
+    <span onclick="editItem()" id="editBtn" class="updateBtn">Update</span>
+    <span onclick="addItem()" id="addBtn" class="addBtn">Add</span>
+</div>
+
+<div class="list">
+<ul id="myUL">
+</ul>
+</div>
+<script>
+    //var CONFIG = require('./config.js');
+    var itemsInList = 0;
+    var contractInstance = null;
+    var objToEdit = null;
+    window.addEventListener('load', function() {
+            // Set a delay for chrome to insert metamask web3 instance
+            setTimeout(function () {
+                getDataFromBlockChain();
+            }, 80);
+    });
+
+
+
+    // Create a new list item when clicking on the "Add" button
+    function addItem() {
+        var li = document.createElement("li");
+        var inputItem = document.getElementById("myInput").value;
+        if (inputItem === '') {
+            alert("Please add items in your to-do list!");
+        } else if(inputItem.length > 150){
+            alert("Not more than 150 characters allowed");
+        }
+        else {
+
+            var sender = window.web3.eth.defaultAccount;
+            sender = sender.toLowerCase();
+            contractInstance.addItem.sendTransaction(itemsInList+1, inputItem, {from: sender}, function (error, transactionHash) {
+                if (!error) {
+                    itemsInList++;
+                    var t = document.createTextNode(inputItem);
+                    li.appendChild(t);
+                    var postTracker = document.createElement("input");
+                    postTracker.setAttribute("type", "hidden");
+                    postTracker.setAttribute("value", itemsInList);
+                    li.appendChild(postTracker);
+                    document.getElementById("myInput").value = "";
+                    var editBtn = document.createElement("button");
+                    editBtn.setAttribute("class", "editBtn");
+                    var btnTxt = document.createTextNode("\u270E");
+                    editBtn.appendChild(btnTxt);
+                    editBtn.onclick = function (ev) {
+                        editItemAction(ev.currentTarget);
+                    };
+                    li.appendChild(editBtn);
+                    var span = document.createElement("SPAN");
+                    var txt = document.createTextNode("\u00D7");
+                    span.className = "close";
+                    span.appendChild(txt);
+                    span.onclick = function (ev) {
+                        deleteItemAction(ev.currentTarget);
+                    };
+                    li.appendChild(span);
+                    document.getElementById("myUL").appendChild(li);
+                }
+                else {
+                    if (error.message.includes('User denied transaction signature')) {
+                        alert('User denied transaction signature');
+                    } else {
+                        alert(error.message);
+                    }
+                }
+            });
+        }
+    }
+
+
+    function createContractInstance(){
+        var abi = [{"constant":false,"inputs":[{"name":"position","type":"uint256"}],"name":"getItemAtPos","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"}],"name":"deleteItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"},{"name":"data","type":"string"}],"name":"addItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"},{"name":"newData","type":"string"}],"name":"editItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"getItemsInList","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"itemsInList","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]
+        var toDoListContract = web3.eth.contract(abi);
+        var toDoListContractInstance = toDoListContract.at("0xfcd16d291ecc3309327132ce84bf9f143a7f92f6");
+        return toDoListContractInstance;
+    }
+
+    function editItem() {
+        var editedItem = document.getElementById("myInput").value;
+        if (editedItem == null || editedItem == "") {
+            alert("Item not edited");
+        } else if(editedItem.length > 150){
+            alert("Not more than 150 characters allowed");
+        } else {
+            if(objToEdit.parentElement.childNodes[0].data == editedItem) {
+                alert("Item not edited");
+            }else {
+                //alert("New Item:" + editedItem);
+                var itemToEditPos = objToEdit.parentElement.childNodes[1].value;
+                var parentElem = objToEdit.parentElement;
+                contractInstance.editItem.sendTransaction(itemToEditPos, editedItem, {from: web3.eth.defaultAccount}, function (error, transactionHash) {
+                    if (!error) {
+                        parentElem.childNodes[0].data = editedItem;
+                        document.getElementById("myInput").value = "";
+                        document.getElementById("addBtn").style.display = "block";
+                        document.getElementById("editBtn").style.display = "none";
+                    }  else {
+                        if (error.message.includes('User denied transaction signature')) {
+                            alert('User denied transaction signature');
+                        } else {
+                            alert(error.message);
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    function editItemAction(thisObj){
+        var itemToEdit = thisObj.parentElement.childNodes[0].data;
+        document.getElementById("myInput").value = itemToEdit;
+        document.getElementById("addBtn").style.display = "none";
+        document.getElementById("editBtn").style.display = "block";
+        objToEdit = thisObj;
+    }
+
+    function deleteItemAction(thisObj){
+        var itemToDelete = thisObj.parentElement.childNodes[0].data;
+        var itemToDeletePos = thisObj.parentElement.childNodes[1].value;
+        var confirmDelete = confirm("Are you sure you want to delete item - "+ itemToDelete );
+        if (confirmDelete == true) {
+            var parentElem = thisObj.parentElement;
+            contractInstance.deleteItem.sendTransaction(itemToDeletePos,  {from: web3.eth.defaultAccount}, function (error, transactionHash) {
+                if (!error) {
+                    parentElem.style.display = "none";
+                } else {
+                    if (error.message.includes('User denied transaction signature')) {
+                        alert('User denied transaction signature');
+                    } else {
+                        alert(error.message);
+                    }
+                }
+            });
+        }
+    }
+
+    function getDataFromBlockChain(){
+        //Checking if Web3 has been injected by the browser (Mist/MetaMask)
+        if (typeof web3 !== 'undefined') {
+            // Use Mist/MetaMask's provider
+            web3 = new Web3(web3.currentProvider);
+            if (typeof web3.eth.defaultAccount === 'undefined') {
+                document.body.innerHTML = '<body><h1>Oops! Your browser does not support Ethereum Ðapps.</h1></body>';
+                return;
+            }
+        } else {
+            alert('No web3? You should consider trying MetaMask!')
+            // fallback - use your fallback strategy (local node / hosted node + in-dapp id mgmt / fail)
+            web3 = new Web3(new Web3.providers.HttpProvider("https://kovan.infura.io/lgLB7xwICiLY3EWdSNGw"));
+        }
+        var sender = web3.eth.defaultAccount;
+        sender = sender.toLowerCase();
+        contractInstance = createContractInstance();
+        contractInstance.getItemsInList.call({from: sender}, function (error, noOfItemsInBlckChain) {
+            //alert(noOfItemsInBlckChain);
+            itemsInList = noOfItemsInBlckChain.toNumber();
+            if (!error) {
+                var index = 0;
+                for(var i=1; i<= itemsInList; i++) {
+                    (function(index) {
+                        setTimeout(function() {
+                            contractInstance.getItemAtPos.call(index, {from: sender}, function (error, inputItem) {
+                                if (!error && inputItem != "") {
+                                    var li = document.createElement("li");
+                                    var t = document.createTextNode(inputItem);
+                                    li.appendChild(t);
+                                    var postTracker = document.createElement("input");
+                                    postTracker.setAttribute("type", "hidden");
+                                    postTracker.setAttribute("value", index);
+                                    li.appendChild(postTracker);
+                                    var editBtn = document.createElement("button");
+                                    editBtn.setAttribute("class", "editBtn");
+                                    editBtn.style.backgroundImage = "https://maxcdn.icons8.com/app/uploads/2016/10/edit2.png";
+                                    var btnTxt = document.createTextNode("\u270E");
+                                    editBtn.appendChild(btnTxt);
+                                    editBtn.onclick = function (ev) {
+                                        editItemAction(ev.currentTarget);
+                                    };
+                                    li.appendChild(editBtn);
+                                    var span = document.createElement("SPAN");
+                                    var txt = document.createTextNode("\u00D7");
+                                    span.className = "close";
+                                    span.appendChild(txt);
+                                    span.onclick = function (ev) {
+                                        deleteItemAction(ev.currentTarget);
+                                    };
+                                    li.appendChild(span);
+                                    document.getElementById("myUL").appendChild(li);
+                                }
+                            });
+                        }, i * 100);
+                    })(i);
+                }
+            }
+        });
+    }
+
+
+</script>
+
+</body>
+</html>
+

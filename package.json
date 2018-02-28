@@ -1,0 +1,15 @@
+{
+  "name": "todolistdapp",
+  "version": "1.0.0",
+  "description": "Dapp for maintaining to do list",
+  "main": "../index.html",
+  "scripts": {
+    "start": "node main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "web3": "github:ethereum/web3.js"
+  }
+}
