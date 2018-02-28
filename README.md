@@ -2,7 +2,7 @@
 Blockchain based to-do listi.
 Basic to-do list app.
 Clone the repo and follow the steps
-1. npm istall
+1. npm install
 2. npm start
 3. once started project is available on browser at http://127.0.0.1:8080/
 4. Works with MetaMask provider on Google chrome
