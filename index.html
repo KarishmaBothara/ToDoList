@@ -152,21 +152,22 @@
 </ul>
 </div>
 <script>
-    //var CONFIG = require('./config.js');
     var itemsInList = 0;
     var contractInstance = null;
     var objToEdit = null;
-    window.addEventListener('load', function() {
-            // Set a delay for chrome to insert metamask web3 instance
-            setTimeout(function () {
-                getDataFromBlockChain();
-            }, 80);
-    });
 
+    var account = web3.eth.accounts[0];
+    var accountInterval = setInterval(function() {
+        if (web3.eth.accounts[0] !== account) {
+            account = web3.eth.accounts[0];
+            getDataFromBlockChain();
+        }
+    }, 50);
 
 
     // Create a new list item when clicking on the "Add" button
     function addItem() {
+        getNumberOfElementsInList();
         var li = document.createElement("li");
         var inputItem = document.getElementById("myInput").value;
         if (inputItem === '') {
@@ -178,7 +179,7 @@
 
             var sender = window.web3.eth.defaultAccount;
             sender = sender.toLowerCase();
-            contractInstance.addItem.sendTransaction(itemsInList+1, inputItem, {from: sender}, function (error, transactionHash) {
+            contractInstance.addItem.sendTransaction(inputItem, {from: sender}, function (error, transactionHash) {
                 if (!error) {
                     itemsInList++;
                     var t = document.createTextNode(inputItem);
@@ -219,9 +220,9 @@
 
 
     function createContractInstance(){
-        var abi = [{"constant":false,"inputs":[{"name":"position","type":"uint256"}],"name":"getItemAtPos","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"}],"name":"deleteItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"},{"name":"data","type":"string"}],"name":"addItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"},{"name":"newData","type":"string"}],"name":"editItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"getItemsInList","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"itemsInList","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]
+        var abi = [{"constant":true,"inputs":[{"name":"position","type":"uint256"}],"name":"getItemAtPos","outputs":[{"name":"item","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"data","type":"string"}],"name":"addItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"}],"name":"deleteItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"position","type":"uint256"},{"name":"newData","type":"string"}],"name":"editItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"getItemsInList","outputs":[{"name":"itemCount","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]
         var toDoListContract = web3.eth.contract(abi);
-        var toDoListContractInstance = toDoListContract.at("0x3465f69b183ec6c6b030925ff686e3f7f3c061b4");
+        var toDoListContractInstance = toDoListContract.at("0xd8ff462c9199b16569414cedabf864ef2b845c94");
         return toDoListContractInstance;
     }
 
@@ -284,7 +285,18 @@
         }
     }
 
+    function getNumberOfElementsInList(){
+        var sender = web3.eth.defaultAccount;
+        sender = sender.toLowerCase();
+        contractInstance.getItemsInList.call({from: sender}, function (error, noOfItemsInBlckChain) {
+            if (!error) {
+                itemsInList = noOfItemsInBlckChain.toNumber();
+            }
+        });
+    }
+
     function getDataFromBlockChain(){
+        document.getElementById("myUL").innerHTML = "";
         //Checking if Web3 has been injected by the browser (Mist/MetaMask)
         if (typeof web3 !== 'undefined') {
             // Use Mist/MetaMask's provider
